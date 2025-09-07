@@ -1,0 +1,12 @@
+name: Print date and time
+
+on: 
+  push:
+  pull_request:
+
+jobs:
+  show-datetime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print current date and time
+        run: date
