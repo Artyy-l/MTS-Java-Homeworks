@@ -1,6 +1,9 @@
 package com.mipt.todolist.controller;
 
-import com.mipt.todolist.model.Task;
+import com.mipt.todolist.dto.TaskCreateDto;
+import com.mipt.todolist.dto.TaskResponseDto;
+import com.mipt.todolist.dto.TaskUpdateDto;
+import com.mipt.todolist.model.Priority;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,6 +16,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -42,9 +47,10 @@ class TaskControllerTest {
         @Test
         @DisplayName("позитивный: возвращает 200 и список задач")
         void getAllTasks_positive() {
-            ResponseEntity<Task[]> response = restTemplate.getForEntity(baseUrl, Task[].class);
+            ResponseEntity<TaskResponseDto[]> response = restTemplate.getForEntity(baseUrl, TaskResponseDto[].class);
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
+            assertThat(response.getHeaders().getFirst(TaskController.HEADER_TOTAL_COUNT)).isNotNull();
         }
 
         @Test
@@ -62,9 +68,9 @@ class TaskControllerTest {
         @Test
         @DisplayName("позитивный: существующая задача возвращает 200 и задачу")
         void getById_positive() {
-            Task created = createTask("Title", "Desc", false);
+            TaskResponseDto created = createTask("Title", "Desc", false);
             String id = created.getId();
-            ResponseEntity<Task> response = restTemplate.getForEntity(baseUrl + "/" + id, Task.class);
+            ResponseEntity<TaskResponseDto> response = restTemplate.getForEntity(baseUrl + "/" + id, TaskResponseDto.class);
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().getId()).isEqualTo(id);
@@ -86,25 +92,22 @@ class TaskControllerTest {
         @Test
         @DisplayName("позитивный: создание задачи возвращает 201 и задачу с id")
         void createTask_positive() {
-            Task task = new Task();
-            task.setTitle("New Task");
-            task.setDescription("New Description");
-            task.setCompleted(false);
-            ResponseEntity<Task> response = restTemplate.postForEntity(baseUrl, task, Task.class);
+            TaskCreateDto dto = validCreateDto("New Task", "New Description");
+            ResponseEntity<TaskResponseDto> response = restTemplate.postForEntity(baseUrl, dto, TaskResponseDto.class);
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().getId()).isNotBlank();
             assertThat(response.getBody().getTitle()).isEqualTo("New Task");
+            assertThat(response.getBody().getPriority()).isEqualTo(Priority.MEDIUM);
         }
 
         @Test
-        @DisplayName("негативный: пустое тело запроса всё равно обрабатывается (тело без title)")
-        void createTask_emptyBody() {
-            Task task = new Task();
-            ResponseEntity<Task> response = restTemplate.postForEntity(baseUrl, task, Task.class);
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-            assertThat(response.getBody()).isNotNull();
-            assertThat(response.getBody().getId()).isNotBlank();
+        @DisplayName("негативный: невалидное тело — 400")
+        void createTask_invalid_returns400() {
+            TaskCreateDto dto = new TaskCreateDto();
+            dto.setTitle("ab");
+            ResponseEntity<String> response = restTemplate.postForEntity(baseUrl, dto, String.class);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -115,14 +118,17 @@ class TaskControllerTest {
         @Test
         @DisplayName("позитивный: обновление существующей задачи возвращает 200")
         void updateTask_positive() {
-            Task created = createTask("Original", "Desc", false);
+            TaskResponseDto created = createTask("Original", "Desc", false);
             String id = created.getId();
-            Task update = new Task(id, "Updated Title", "Updated Desc", true);
-            ResponseEntity<Task> response = restTemplate.exchange(
+            TaskUpdateDto update = new TaskUpdateDto();
+            update.setTitle("Updated Title");
+            update.setDescription("Updated Desc");
+            update.setCompleted(true);
+            ResponseEntity<TaskResponseDto> response = restTemplate.exchange(
                     baseUrl + "/" + id,
                     HttpMethod.PUT,
                     new HttpEntity<>(update),
-                    Task.class
+                    TaskResponseDto.class
             );
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
@@ -133,7 +139,8 @@ class TaskControllerTest {
         @Test
         @DisplayName("негативный: обновление несуществующей задачи возвращает 404")
         void updateTask_notFound_returns404() {
-            Task update = new Task("non-existent", "Title", "Desc", false);
+            TaskUpdateDto update = new TaskUpdateDto();
+            update.setTitle("Some title");
             ResponseEntity<String> response = restTemplate.exchange(
                     baseUrl + "/non-existent",
                     HttpMethod.PUT,
@@ -151,7 +158,7 @@ class TaskControllerTest {
         @Test
         @DisplayName("позитивный: удаление существующей задачи возвращает 204")
         void deleteTask_positive() {
-            Task created = createTask("To Delete", "Desc", false);
+            TaskResponseDto created = createTask("To Delete", "Desc", false);
             String id = created.getId();
             ResponseEntity<Void> response = restTemplate.exchange(
                     baseUrl + "/" + id,
@@ -160,7 +167,7 @@ class TaskControllerTest {
                     Void.class
             );
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-            ResponseEntity<Task> getAfter = restTemplate.getForEntity(baseUrl + "/" + id, Task.class);
+            ResponseEntity<String> getAfter = restTemplate.getForEntity(baseUrl + "/" + id, String.class);
             assertThat(getAfter.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         }
 
@@ -177,13 +184,32 @@ class TaskControllerTest {
         }
     }
 
-    private Task createTask(String title, String description, boolean completed) {
-        Task task = new Task();
-        task.setTitle(title);
-        task.setDescription(description);
-        task.setCompleted(completed);
-        ResponseEntity<Task> response = restTemplate.postForEntity(baseUrl, task, Task.class);
+    private TaskCreateDto validCreateDto(String title, String description) {
+        TaskCreateDto dto = new TaskCreateDto();
+        dto.setTitle(title);
+        dto.setDescription(description);
+        dto.setPriority(Priority.MEDIUM);
+        dto.setDueDate(LocalDate.now());
+        return dto;
+    }
+
+    private TaskResponseDto createTask(String title, String description, boolean completed) {
+        TaskCreateDto dto = validCreateDto(title, description);
+        ResponseEntity<TaskResponseDto> response = restTemplate.postForEntity(baseUrl, dto, TaskResponseDto.class);
         assertThat(response.getBody()).isNotNull();
-        return response.getBody();
+        TaskResponseDto body = response.getBody();
+        if (completed) {
+            TaskUpdateDto u = new TaskUpdateDto();
+            u.setCompleted(true);
+            ResponseEntity<TaskResponseDto> put = restTemplate.exchange(
+                    baseUrl + "/" + body.getId(),
+                    HttpMethod.PUT,
+                    new HttpEntity<>(u),
+                    TaskResponseDto.class
+            );
+            assertThat(put.getBody()).isNotNull();
+            return put.getBody();
+        }
+        return body;
     }
 }

@@ -1,6 +1,7 @@
 package com.mipt.todolist.service;
 
 import com.mipt.todolist.config.PrototypeScopedBean;
+import com.mipt.todolist.exception.TaskNotFoundException;
 import com.mipt.todolist.model.Task;
 import com.mipt.todolist.repository.TaskRepository;
 import jakarta.annotation.PostConstruct;
@@ -71,6 +72,10 @@ public class TaskService {
         Optional<Task> fromRepo = taskRepository.findById(id);
         fromRepo.ifPresent(t -> taskCache.put(t.getId(), t));
         return fromRepo;
+    }
+
+    public Task findByIdOrThrow(String id) {
+        return findById(id).orElseThrow(() -> new TaskNotFoundException(id));
     }
 
     public Task save(Task task) {
