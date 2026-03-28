@@ -19,3 +19,18 @@ jobs:
 
       - name: Build and test with Maven
         run: mvn -B clean verify
+
+      - name: Publish Test Results
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Maven Tests
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/surefire-reports/
