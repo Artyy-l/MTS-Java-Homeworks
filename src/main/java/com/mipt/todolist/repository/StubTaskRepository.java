@@ -1,17 +1,23 @@
 package com.mipt.todolist.repository;
 
+import com.mipt.todolist.model.Priority;
 import com.mipt.todolist.model.Task;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Заглушка репозитория с фиксированным набором задач для тестирования
  */
 public class StubTaskRepository implements TaskRepository {
     private static final List<Task> STUB_TASKS = List.of(
-            new Task("stub-1", "Stub Task 1", "Description 1", false),
-            new Task("stub-2", "Stub Task 2", "Description 2", true)
+            new Task("stub-1", "Stub Task 1", "Description 1", false,
+                    LocalDateTime.now().minusDays(2), LocalDate.now().plusDays(5), Priority.MEDIUM, Set.of("stub")),
+            new Task("stub-2", "Stub Task 2", "Description 2", true,
+                    LocalDateTime.now().minusDays(1), LocalDate.now().plusDays(1), Priority.LOW, Set.of())
     );
 
     @Override
