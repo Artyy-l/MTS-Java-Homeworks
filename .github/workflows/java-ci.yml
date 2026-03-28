@@ -20,44 +20,17 @@ jobs:
       - name: Build and test with Maven
         run: mvn -B clean verify
 
-      - name: Add test summary
+      - name: Publish Test Results
         if: always()
-        run: |
-          python - <<'PY'
-          import glob
-          import xml.etree.ElementTree as ET
-
-          files = glob.glob('target/**/TEST-*.xml', recursive=True)
-
-          tests = failures = errors = skipped = 0
-          for f in files:
-              root = ET.parse(f).getroot()
-              tests += int(root.attrib.get('tests', 0))
-              failures += int(root.attrib.get('failures', 0))
-              errors += int(root.attrib.get('errors', 0))
-              skipped += int(root.attrib.get('skipped', 0))
-
-          passed = tests - failures - errors - skipped
-
-          with open('test-summary.md', 'w', encoding='utf-8') as out:
-              out.write('## Test summary\n\n')
-              out.write(f'- Passed: **{passed}/{tests}**\n')
-              out.write(f'- Failures: **{failures}**\n')
-              out.write(f'- Errors: **{errors}**\n')
-              out.write(f'- Skipped: **{skipped}**\n')
-          PY
-          cat test-summary.md >> "$GITHUB_STEP_SUMMARY"
+        uses: dorny/test-reporter@v2
+        with:
+          name: Maven Tests
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
 
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: target/**/TEST-*.xml
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-report
-          path: target/site/jacoco/
+          path: target/surefire-reports/
