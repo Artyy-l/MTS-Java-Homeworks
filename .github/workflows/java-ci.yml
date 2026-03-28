@@ -27,7 +27,7 @@ jobs:
           import glob
           import xml.etree.ElementTree as ET
 
-          files = glob.glob('target/surefire-reports/TEST-*.xml')
+          files = glob.glob('target/**/TEST-*.xml', recursive=True)
 
           tests = failures = errors = skipped = 0
           for f in files:
@@ -53,7 +53,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: target/surefire-reports/
+          path: target/**/TEST-*.xml
 
       - name: Upload coverage report
         if: always()
