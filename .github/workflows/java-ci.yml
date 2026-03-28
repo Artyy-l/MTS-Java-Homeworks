@@ -2,6 +2,10 @@ name: Java CI with Maven
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,12 +24,16 @@ jobs:
       - name: Build and test with Maven
         run: mvn -B clean verify
 
+      - name: Show test report files
+        if: always()
+        run: find target -type f | sort
+
       - name: Publish Test Results
         if: always()
         uses: dorny/test-reporter@v2
         with:
           name: Maven Tests
-          path: target/surefire-reports/*.xml
+          path: "**/surefire-reports/*.xml"
           reporter: java-junit
 
       - name: Upload test reports
