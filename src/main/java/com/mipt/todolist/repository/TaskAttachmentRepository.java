@@ -1,20 +1,11 @@
 package com.mipt.todolist.repository;
 
 import com.mipt.todolist.model.TaskAttachment;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.Optional;
 
-/**
- * Репозиторий метаданных вложений
- */
-public interface TaskAttachmentRepository {
+public interface TaskAttachmentRepository extends JpaRepository<TaskAttachment, Long> {
 
-    TaskAttachment save(TaskAttachment attachment);
-
-    Optional<TaskAttachment> findById(Long id);
-
-    List<TaskAttachment> findByTaskId(String taskId);
-
-    void deleteById(Long id);
+    List<TaskAttachment> findByTask_Id(String taskId);
 }

@@ -1,23 +1,72 @@
 package com.mipt.todolist.model;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 /**
  * Модель задачи в списке дел
  */
+@Entity
+@Table(name = "tasks")
+@EntityListeners(AuditingEntityListener.class)
 public class Task {
+    @Id
+    @Column(name = "id", nullable = false, length = 36)
     private String id;
+
+    @Column(name = "title", nullable = false, length = 100)
     private String title;
+
+    @Column(name = "description", length = 500)
     private String description;
+
+    @Column(name = "completed", nullable = false)
     private boolean completed;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "due_date")
     private LocalDate dueDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority", nullable = false, length = 20)
     private Priority priority;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "task_tags", joinColumns = @JoinColumn(name = "task_id"))
+    @Column(name = "tag", nullable = false, length = 100)
     private Set<String> tags = new HashSet<>();
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.REMOVE, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<TaskAttachment> attachments = new ArrayList<>();
 
     public Task() {
     }
@@ -81,6 +130,14 @@ public class Task {
         this.createdAt = createdAt;
     }
 
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     public LocalDate getDueDate() {
         return dueDate;
     }
@@ -105,6 +162,14 @@ public class Task {
         this.tags = tags != null ? new HashSet<>(tags) : new HashSet<>();
     }
 
+    public List<TaskAttachment> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<TaskAttachment> attachments) {
+        this.attachments = attachments != null ? new ArrayList<>(attachments) : new ArrayList<>();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -119,6 +184,7 @@ public class Task {
                 && Objects.equals(title, task.title)
                 && Objects.equals(description, task.description)
                 && Objects.equals(createdAt, task.createdAt)
+                && Objects.equals(updatedAt, task.updatedAt)
                 && Objects.equals(dueDate, task.dueDate)
                 && priority == task.priority
                 && Objects.equals(tags, task.tags);
@@ -126,7 +192,7 @@ public class Task {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, title, description, completed, createdAt, dueDate, priority, tags);
+        return Objects.hash(id, title, description, completed, createdAt, updatedAt, dueDate, priority, tags);
     }
 
     @Override
@@ -137,9 +203,9 @@ public class Task {
                 + ", description='" + description + '\''
                 + ", completed=" + completed
                 + ", createdAt=" + createdAt
+                + ", updatedAt=" + updatedAt
                 + ", dueDate=" + dueDate
                 + ", priority=" + priority
-                + ", tags=" + tags
                 + '}';
     }
 }

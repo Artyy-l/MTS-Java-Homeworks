@@ -110,6 +110,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    @ExceptionHandler(BulkTaskCompletionException.class)
+    public ResponseEntity<ErrorResponse> handleBulkTaskCompletion(BulkTaskCompletionException ex,
+                                                                  HttpServletRequest request) {
+        ErrorResponse body = baseError(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
     @ExceptionHandler(AttachmentNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleAttachmentNotFound(AttachmentNotFoundException ex,
                                                                   HttpServletRequest request) {

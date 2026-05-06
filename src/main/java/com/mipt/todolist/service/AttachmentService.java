@@ -3,12 +3,14 @@ package com.mipt.todolist.service;
 import com.mipt.todolist.dto.AttachmentResponseDto;
 import com.mipt.todolist.exception.AttachmentNotFoundException;
 import com.mipt.todolist.exception.TaskNotFoundException;
+import com.mipt.todolist.model.Task;
 import com.mipt.todolist.model.TaskAttachment;
 import com.mipt.todolist.repository.TaskAttachmentRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -37,10 +39,9 @@ public class AttachmentService {
         this.uploadDirectory = Path.of(uploadsDir);
     }
 
+    @Transactional
     public AttachmentResponseDto storeAttachment(String taskId, MultipartFile file) throws IOException {
-        if (!taskService.existsById(taskId)) {
-            throw new TaskNotFoundException(taskId);
-        }
+        Task task = taskService.findById(taskId).orElseThrow(() -> new TaskNotFoundException(taskId));
         Files.createDirectories(uploadDirectory);
         String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
         String storedName = UUID.randomUUID().toString();
@@ -49,7 +50,7 @@ public class AttachmentService {
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
         }
         TaskAttachment meta = new TaskAttachment();
-        meta.setTaskId(taskId);
+        meta.setTask(task);
         meta.setFileName(originalName);
         meta.setStoredFileName(storedName);
         meta.setContentType(file.getContentType() != null ? file.getContentType() : "application/octet-stream");
@@ -59,6 +60,7 @@ public class AttachmentService {
         return toDto(saved);
     }
 
+    @Transactional(readOnly = true)
     public TaskAttachment getAttachment(Long attachmentId) {
         return attachmentRepository.findById(attachmentId)
                 .orElseThrow(() -> new AttachmentNotFoundException(attachmentId));
@@ -74,6 +76,7 @@ public class AttachmentService {
         return resource;
     }
 
+    @Transactional
     public void deleteAttachment(Long attachmentId) throws IOException {
         TaskAttachment meta = getAttachment(attachmentId);
         Path file = uploadDirectory.resolve(meta.getStoredFileName());
@@ -81,11 +84,12 @@ public class AttachmentService {
         attachmentRepository.deleteById(attachmentId);
     }
 
+    @Transactional(readOnly = true)
     public List<AttachmentResponseDto> listByTaskId(String taskId) {
         if (!taskService.existsById(taskId)) {
             throw new TaskNotFoundException(taskId);
         }
-        return attachmentRepository.findByTaskId(taskId).stream()
+        return attachmentRepository.findByTask_Id(taskId).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }

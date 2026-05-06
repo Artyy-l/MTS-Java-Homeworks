@@ -94,7 +94,7 @@ class AttachmentControllerTest {
     }
 
     @Test
-    @DisplayName("загрузка для несуществующей задачи — 404")
+    @DisplayName("загрузка для несуществующей задачи - 404")
     void upload_unknownTask_returns404() {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", new ByteArrayResource("x".getBytes()) {

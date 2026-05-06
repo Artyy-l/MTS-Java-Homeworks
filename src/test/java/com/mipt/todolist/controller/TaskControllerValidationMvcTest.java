@@ -28,7 +28,7 @@ class TaskControllerValidationMvcTest {
     private ObjectMapper objectMapper;
 
     @Test
-    @DisplayName("POST /api/tasks с невалидным телом — 400 и детали полей")
+    @DisplayName("POST /api/tasks с невалидным телом - 400 и детали полей")
     void create_invalid_returns400WithDetails() throws Exception {
         TaskCreateDto dto = new TaskCreateDto();
         dto.setTitle("ab");

@@ -1,37 +1,27 @@
 package com.mipt.todolist.repository;
 
+import com.mipt.todolist.model.Priority;
 import com.mipt.todolist.model.Task;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
-/**
- * Интерфейс репозитория для CRUD-операций над задачами
- */
-public interface TaskRepository {
+public interface TaskRepository extends JpaRepository<Task, String> {
 
-    /**
-     * Возвращает все задачи
-     */
-    List<Task> findAll();
+    List<Task> findByCompletedAndPriority(boolean completed, Priority priority);
 
-    /**
-     * Находит задачу по идентификатору
-     */
-    Optional<Task> findById(String id);
+    @Query("""
+            select t
+            from Task t
+            where t.dueDate between :from and :to
+            """)
+    List<Task> findTasksDueWithinNextSevenDays(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
-    /**
-     * Сохраняет задачу (создание или обновление)
-     */
-    Task save(Task task);
-
-    /**
-     * Удаляет задачу по идентификатору
-     */
-    void deleteById(String id);
-
-    /**
-     * Проверяет наличие задачи по идентификатору
-     */
-    boolean existsById(String id);
+    @EntityGraph(attributePaths = "attachments")
+    @Query("select distinct t from Task t")
+    List<Task> findAllWithAttachments();
 }

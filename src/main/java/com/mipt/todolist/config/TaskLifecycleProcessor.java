@@ -9,29 +9,22 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
-/**
- * Обработчик жизненного цикла бинов. Логирует создание и инициализацию бинов TaskService и TaskRepository
- */
 @Component
 public class TaskLifecycleProcessor implements BeanPostProcessor {
     private static final Logger log = LoggerFactory.getLogger(TaskLifecycleProcessor.class);
 
     @Override
     public Object postProcessBeforeInitialization(@NonNull Object bean, @NonNull String beanName) throws BeansException {
-        if (bean instanceof TaskService) {
-            log.info("TaskLifecycleProcessor: до инициализации — бин TaskService '{}'", beanName);
-        } else if (bean instanceof TaskRepository) {
-            log.info("TaskLifecycleProcessor: до инициализации — бин TaskRepository '{}'", beanName);
+        if (bean instanceof TaskService || bean instanceof TaskRepository) {
+            log.debug("Bean before initialization: name={}, type={}", beanName, bean.getClass().getSimpleName());
         }
         return bean;
     }
 
     @Override
     public Object postProcessAfterInitialization(@NonNull Object bean, @NonNull String beanName) throws BeansException {
-        if (bean instanceof TaskService) {
-            log.info("TaskLifecycleProcessor: после инициализации — бин TaskService '{}'", beanName);
-        } else if (bean instanceof TaskRepository) {
-            log.info("TaskLifecycleProcessor: после инициализации — бин TaskRepository '{}'", beanName);
+        if (bean instanceof TaskService || bean instanceof TaskRepository) {
+            log.debug("Bean after initialization: name={}, type={}", beanName, bean.getClass().getSimpleName());
         }
         return bean;
     }
