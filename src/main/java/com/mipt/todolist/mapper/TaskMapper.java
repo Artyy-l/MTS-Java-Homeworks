@@ -19,14 +19,18 @@ public interface TaskMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "completed", constant = "false")
     @Mapping(target = "createdAt", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "tags", expression = "java(dto.getTags() != null ? new HashSet<>(dto.getTags()) : new HashSet<>())")
+    @Mapping(target = "attachments", ignore = true)
     Task toEntity(TaskCreateDto dto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "completed", expression = "java(dto.getCompleted() != null ? dto.getCompleted() : task.isCompleted())")
     @Mapping(target = "tags", expression = "java(dto.getTags() != null ? new HashSet<>(dto.getTags()) : task.getTags())")
+    @Mapping(target = "attachments", ignore = true)
     void updateEntity(TaskUpdateDto dto, @MappingTarget Task task);
 
     TaskResponseDto toResponseDto(Task task);

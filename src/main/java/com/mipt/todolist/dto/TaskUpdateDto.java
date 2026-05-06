@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import java.util.Set;
 
 @DueDateNotBeforeCreation(groups = OnUpdate.class)
-@Schema(description = "Частичное обновление задачи (null — не менять поле)")
+@Schema(description = "Частичное обновление задачи (null - не менять поле)")
 public class TaskUpdateDto {
 
     @Size(min = 3, max = 100, groups = OnUpdate.class)

@@ -102,7 +102,7 @@ class TaskControllerTest {
         }
 
         @Test
-        @DisplayName("негативный: невалидное тело — 400")
+        @DisplayName("негативный: невалидное тело - 400")
         void createTask_invalid_returns400() {
             TaskCreateDto dto = new TaskCreateDto();
             dto.setTitle("ab");

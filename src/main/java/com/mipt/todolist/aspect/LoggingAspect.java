@@ -7,9 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Аспект для логирования вызовов методов в слое service: начало, завершение и результат
- */
+import java.util.Collection;
+
 @Aspect
 @Component
 public class LoggingAspect {
@@ -18,19 +17,24 @@ public class LoggingAspect {
     @Around("execution(* com.mipt.todolist.service..*(..))")
     public Object logServiceMethods(ProceedingJoinPoint joinPoint) throws Throwable {
         String methodName = joinPoint.getSignature().toShortString();
-        log.info("LoggingAspect: начало {}", methodName);
-        Object result;
+        log.debug("Service method started: {}", methodName);
         try {
-            result = joinPoint.proceed();
-            if (result != null) {
-                log.info("LoggingAspect: конец {} -> результат: {}", methodName, result);
-            } else {
-                log.info("LoggingAspect: конец {} -> (нет возвращаемого значения)", methodName);
-            }
+            Object result = joinPoint.proceed();
+            log.debug("Service method finished: {}, result={}", methodName, describeResult(result));
             return result;
-        } catch (Throwable t) {
-            log.info("LoggingAspect: конец {} -> исключение: {}", methodName, t.getMessage());
-            throw t;
+        } catch (Throwable throwable) {
+            log.info("Service method failed: {}, error={}", methodName, throwable.getMessage());
+            throw throwable;
         }
+    }
+
+    private String describeResult(Object result) {
+        if (result == null) {
+            return "void";
+        }
+        if (result instanceof Collection<?> collection) {
+            return result.getClass().getSimpleName() + "(size=" + collection.size() + ")";
+        }
+        return result.getClass().getSimpleName();
     }
 }
