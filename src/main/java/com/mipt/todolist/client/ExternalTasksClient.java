@@ -106,6 +106,21 @@ public class ExternalTasksClient {
                 .toBodilessEntity();
     }
 
+    public String callUnstable(String mode) {
+        return restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/unstable")
+                        .queryParam("mode", mode)
+                        .build())
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .onStatus(status -> status.is5xxServerError(), (clientRequest, clientResponse) -> {
+                    throw externalApiException(clientResponse.getStatusCode().value(), readBody(clientResponse),
+                            clientResponse.getHeaders().getContentType());
+                })
+                .body(String.class);
+    }
+
     private TaskNotFoundException taskNotFound(byte[] body) {
         ProblemDetail problemDetail = parseProblemDetail(body);
         String detail = problemDetail != null && problemDetail.getDetail() != null

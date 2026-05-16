@@ -59,6 +59,8 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 2
         wait-duration-in-open-state: 10s
         register-health-indicator: true
+        ignore-exceptions:
+          - com.mipt.todolist.exception.TaskNotFoundException
   ratelimiter:
     instances:
       externalApi:

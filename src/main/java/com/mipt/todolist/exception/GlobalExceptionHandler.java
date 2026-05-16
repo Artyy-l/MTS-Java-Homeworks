@@ -1,6 +1,7 @@
 package com.mipt.todolist.exception;
 
 import com.mipt.todolist.dto.ErrorResponse;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -129,6 +130,12 @@ public class GlobalExceptionHandler {
         ErrorResponse body = baseError(HttpStatus.BAD_GATEWAY, ex.getMessage(), request, ex);
         body.setDetails(Map.of("externalStatus", ex.getStatusCode()));
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<ErrorResponse> handleRateLimit(RequestNotPermitted ex, HttpServletRequest request) {
+        ErrorResponse body = baseError(HttpStatus.TOO_MANY_REQUESTS, "Rate limit exceeded", request, null);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
     }
 
     @ExceptionHandler(Exception.class)
