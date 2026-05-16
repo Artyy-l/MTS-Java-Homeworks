@@ -6,6 +6,7 @@ import com.mipt.todolist.dto.TaskResponseDto;
 import com.mipt.todolist.exception.TaskNotFoundException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -51,7 +52,7 @@ public class TasksGatewayService {
     }
 
     public ExternalTasksClient.CreatedTask createTaskFallback(TaskCreateDto request, Throwable throwable) {
-        rethrowNotFound(throwable);
+        rethrowExpected(throwable);
         TaskResponseDto task = fallbackTask("fallback-create", request.getTitle(), "Task was not created in external API");
         task.setDueDate(request.getDueDate());
         task.setPriority(request.getPriority());
@@ -60,12 +61,12 @@ public class TasksGatewayService {
     }
 
     public TaskResponseDto getTaskFallback(String id, Throwable throwable) {
-        rethrowNotFound(throwable);
+        rethrowExpected(throwable);
         return fallbackTask(id, "External task unavailable", "Fallback response because external API is unavailable");
     }
 
     public List<TaskResponseDto> getTasksFallback(Boolean completed, Integer limit, Throwable throwable) {
-        rethrowNotFound(throwable);
+        rethrowExpected(throwable);
         TaskResponseDto task = fallbackTask("fallback-list", "External tasks unavailable",
                 "Fallback list because external API is unavailable");
         task.setCompleted(completed != null && completed);
@@ -73,10 +74,11 @@ public class TasksGatewayService {
     }
 
     public void deleteTaskFallback(String id, Throwable throwable) {
-        rethrowNotFound(throwable);
+        rethrowExpected(throwable);
     }
 
     public String unstableFallback(String mode, Throwable throwable) {
+        rethrowExpected(throwable);
         return "fallback for unstable mode: " + mode;
     }
 
@@ -90,9 +92,12 @@ public class TasksGatewayService {
         return task;
     }
 
-    private void rethrowNotFound(Throwable throwable) {
+    private void rethrowExpected(Throwable throwable) {
         if (throwable instanceof TaskNotFoundException taskNotFoundException) {
             throw taskNotFoundException;
+        }
+        if (throwable instanceof RequestNotPermitted requestNotPermitted) {
+            throw requestNotPermitted;
         }
     }
 }
