@@ -29,8 +29,10 @@ public class WebConfig implements WebMvcConfigurer {
         config.addAllowedMethod("OPTIONS");
         config.addAllowedHeader("Authorization");
         config.addAllowedHeader("Content-Type");
+        config.addAllowedHeader("X-Trace-Id");
         config.addExposedHeader("X-Total-Count");
         config.addExposedHeader(ApiVersionResponseFilter.HEADER_API_VERSION);
+        config.addExposedHeader("X-Trace-Id");
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
