@@ -124,6 +124,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    @ExceptionHandler(ExternalApiException.class)
+    public ResponseEntity<ErrorResponse> handleExternalApi(ExternalApiException ex, HttpServletRequest request) {
+        ErrorResponse body = baseError(HttpStatus.BAD_GATEWAY, ex.getMessage(), request, ex);
+        body.setDetails(Map.of("externalStatus", ex.getStatusCode()));
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         ErrorResponse body = baseError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", request, ex);

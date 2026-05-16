@@ -10,3 +10,8 @@ app:
       expiration: 30m
     password:
       pepper: "test-pepper"
+  external-api:
+    base-url: "http://localhost:8080/external/v1"
+    connect-timeout: 1s
+    read-timeout: 2s
+    user-agent: "todolist-gateway-test/1.0"
