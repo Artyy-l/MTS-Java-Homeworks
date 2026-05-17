@@ -17,7 +17,7 @@ jobs:
           distribution: temurin
           cache: maven
 
-      - name: Build and test with Maven
+      - name: Build and test with Maven and Testcontainers
         run: mvn -B clean verify
 
       - name: Publish Test Results
