@@ -23,10 +23,10 @@ app:
   security:
     jwt:
       issuer: "todolist"
-      secret: "change-me-to-a-long-secret-for-hometask-4"
+      secret: ${JWT_SECRET}
       expiration: 30m
     password:
-      pepper: "change-me-pepper"
+      pepper: ${PASSWORD_PEPPER}
   external-api:
     base-url: "http://localhost:${server.port}/external/v1"
     connect-timeout: 1s

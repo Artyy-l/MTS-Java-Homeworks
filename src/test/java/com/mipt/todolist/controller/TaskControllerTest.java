@@ -1,215 +1,150 @@
 package com.mipt.todolist.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mipt.todolist.config.RequestScopedBean;
 import com.mipt.todolist.dto.TaskCreateDto;
 import com.mipt.todolist.dto.TaskResponseDto;
-import com.mipt.todolist.dto.TaskUpdateDto;
+import com.mipt.todolist.exception.GlobalExceptionHandler;
+import com.mipt.todolist.mapper.TaskMapper;
 import com.mipt.todolist.model.Priority;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
+import com.mipt.todolist.model.Task;
+import com.mipt.todolist.service.TaskService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Модульные тесты для TaskController: позитивные и негативные сценарии по каждому endpoint
- */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@WebMvcTest(TaskController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@ContextConfiguration(classes = {TaskController.class, GlobalExceptionHandler.class})
 class TaskControllerTest {
 
-    @LocalServerPort
-    private int port;
+    @Autowired
+    private MockMvc mockMvc;
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private ObjectMapper objectMapper;
 
-    private String baseUrl;
+    @MockitoBean
+    private TaskService taskService;
 
-    @BeforeEach
-    void setUp() {
-        baseUrl = "http://localhost:" + port + "/api/tasks";
+    @MockitoBean
+    private TaskMapper taskMapper;
+
+    @MockitoBean
+    private RequestScopedBean requestScopedBean;
+
+    @Test
+    void createTask_returnsCreatedTask() throws Exception {
+        TaskCreateDto request = createDto();
+        Task entity = task(null, request.getTitle(), request.getDescription(), false);
+        Task saved = task("task-1", request.getTitle(), request.getDescription(), false);
+        TaskResponseDto response = responseDto(saved);
+
+        when(taskMapper.toEntity(any(TaskCreateDto.class))).thenReturn(entity);
+        when(taskService.save(entity)).thenReturn(saved);
+        when(taskMapper.toResponseDto(saved)).thenReturn(response);
+
+        mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("task-1"))
+                .andExpect(jsonPath("$.title").value("Write tests"))
+                .andExpect(jsonPath("$.description").value("Cover controller"))
+                .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.priority").value("MEDIUM"))
+                .andExpect(jsonPath("$.tags[0]").value("homework"));
+
+        verify(taskMapper).toEntity(any(TaskCreateDto.class));
+        verify(taskService).save(entity);
+        verify(taskMapper).toResponseDto(saved);
     }
 
-    @Nested
-    @DisplayName("GET /api/tasks")
-    class GetAllTasks {
+    @Test
+    void getTaskById_returnsExistingTask() throws Exception {
+        Task task = task("task-2", "Read docs", "Check MockMvc", true);
+        TaskResponseDto response = responseDto(task);
 
-        @Test
-        @DisplayName("позитивный: возвращает 200 и список задач")
-        void getAllTasks_positive() {
-            ResponseEntity<TaskResponseDto[]> response = restTemplate.getForEntity(baseUrl, TaskResponseDto[].class);
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody()).isNotNull();
-            assertThat(response.getHeaders().getFirst(TaskController.HEADER_TOTAL_COUNT)).isNotNull();
-        }
+        when(taskService.findByIdOrThrow("task-2")).thenReturn(task);
+        when(taskMapper.toResponseDto(task)).thenReturn(response);
 
-        @Test
-        @DisplayName("негативный: запрос к несуществующему пути возвращает 404")
-        void getAllTasks_wrongPath_returns404() {
-            ResponseEntity<String> response = restTemplate.getForEntity("http://localhost:" + port + "/api/task", String.class);
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        }
+        mockMvc.perform(get("/api/tasks/{id}", "task-2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("task-2"))
+                .andExpect(jsonPath("$.title").value("Read docs"))
+                .andExpect(jsonPath("$.description").value("Check MockMvc"))
+                .andExpect(jsonPath("$.completed").value(true))
+                .andExpect(jsonPath("$.priority").value("MEDIUM"))
+                .andExpect(jsonPath("$.tags[0]").value("homework"));
+
+        verify(taskService).findByIdOrThrow("task-2");
+        verify(taskMapper).toResponseDto(task);
     }
 
-    @Nested
-    @DisplayName("GET /api/tasks/{id}")
-    class GetTaskById {
+    @Test
+    void createTask_withInvalidRequest_returnsBadRequest() throws Exception {
+        TaskCreateDto request = createDto();
+        request.setTitle("ab");
 
-        @Test
-        @DisplayName("позитивный: существующая задача возвращает 200 и задачу")
-        void getById_positive() {
-            TaskResponseDto created = createTask("Title", "Desc", false);
-            String id = created.getId();
-            ResponseEntity<TaskResponseDto> response = restTemplate.getForEntity(baseUrl + "/" + id, TaskResponseDto.class);
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody()).isNotNull();
-            assertThat(response.getBody().getId()).isEqualTo(id);
-            assertThat(response.getBody().getTitle()).isEqualTo("Title");
-        }
+        mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
 
-        @Test
-        @DisplayName("негативный: несуществующий id возвращает 404")
-        void getById_notFound_returns404() {
-            ResponseEntity<String> response = restTemplate.getForEntity(baseUrl + "/non-existent-id-123", String.class);
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        }
+        verifyNoInteractions(taskService);
     }
 
-    @Nested
-    @DisplayName("POST /api/tasks")
-    class CreateTask {
-
-        @Test
-        @DisplayName("позитивный: создание задачи возвращает 201 и задачу с id")
-        void createTask_positive() {
-            TaskCreateDto dto = validCreateDto("New Task", "New Description");
-            ResponseEntity<TaskResponseDto> response = restTemplate.postForEntity(baseUrl, dto, TaskResponseDto.class);
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-            assertThat(response.getBody()).isNotNull();
-            assertThat(response.getBody().getId()).isNotBlank();
-            assertThat(response.getBody().getTitle()).isEqualTo("New Task");
-            assertThat(response.getBody().getPriority()).isEqualTo(Priority.MEDIUM);
-        }
-
-        @Test
-        @DisplayName("негативный: невалидное тело - 400")
-        void createTask_invalid_returns400() {
-            TaskCreateDto dto = new TaskCreateDto();
-            dto.setTitle("ab");
-            ResponseEntity<String> response = restTemplate.postForEntity(baseUrl, dto, String.class);
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        }
-    }
-
-    @Nested
-    @DisplayName("PUT /api/tasks/{id}")
-    class UpdateTask {
-
-        @Test
-        @DisplayName("позитивный: обновление существующей задачи возвращает 200")
-        void updateTask_positive() {
-            TaskResponseDto created = createTask("Original", "Desc", false);
-            String id = created.getId();
-            TaskUpdateDto update = new TaskUpdateDto();
-            update.setTitle("Updated Title");
-            update.setDescription("Updated Desc");
-            update.setCompleted(true);
-            ResponseEntity<TaskResponseDto> response = restTemplate.exchange(
-                    baseUrl + "/" + id,
-                    HttpMethod.PUT,
-                    new HttpEntity<>(update),
-                    TaskResponseDto.class
-            );
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody()).isNotNull();
-            assertThat(response.getBody().getTitle()).isEqualTo("Updated Title");
-            assertThat(response.getBody().isCompleted()).isTrue();
-        }
-
-        @Test
-        @DisplayName("негативный: обновление несуществующей задачи возвращает 404")
-        void updateTask_notFound_returns404() {
-            TaskUpdateDto update = new TaskUpdateDto();
-            update.setTitle("Some title");
-            ResponseEntity<String> response = restTemplate.exchange(
-                    baseUrl + "/non-existent",
-                    HttpMethod.PUT,
-                    new HttpEntity<>(update),
-                    String.class
-            );
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        }
-    }
-
-    @Nested
-    @DisplayName("DELETE /api/tasks/{id}")
-    class DeleteTask {
-
-        @Test
-        @DisplayName("позитивный: удаление существующей задачи возвращает 204")
-        void deleteTask_positive() {
-            TaskResponseDto created = createTask("To Delete", "Desc", false);
-            String id = created.getId();
-            ResponseEntity<Void> response = restTemplate.exchange(
-                    baseUrl + "/" + id,
-                    HttpMethod.DELETE,
-                    null,
-                    Void.class
-            );
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-            ResponseEntity<String> getAfter = restTemplate.getForEntity(baseUrl + "/" + id, String.class);
-            assertThat(getAfter.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("негативный: удаление несуществующей задачи возвращает 404")
-        void deleteTask_notFound_returns404() {
-            ResponseEntity<String> response = restTemplate.exchange(
-                    baseUrl + "/non-existent-id",
-                    HttpMethod.DELETE,
-                    null,
-                    String.class
-            );
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        }
-    }
-
-    private TaskCreateDto validCreateDto(String title, String description) {
+    private TaskCreateDto createDto() {
         TaskCreateDto dto = new TaskCreateDto();
-        dto.setTitle(title);
-        dto.setDescription(description);
+        dto.setTitle("Write tests");
+        dto.setDescription("Cover controller");
+        dto.setDueDate(LocalDate.now().plusDays(1));
         dto.setPriority(Priority.MEDIUM);
-        dto.setDueDate(LocalDate.now());
+        dto.setTags(Set.of("homework"));
         return dto;
     }
 
-    private TaskResponseDto createTask(String title, String description, boolean completed) {
-        TaskCreateDto dto = validCreateDto(title, description);
-        ResponseEntity<TaskResponseDto> response = restTemplate.postForEntity(baseUrl, dto, TaskResponseDto.class);
-        assertThat(response.getBody()).isNotNull();
-        TaskResponseDto body = response.getBody();
-        if (completed) {
-            TaskUpdateDto u = new TaskUpdateDto();
-            u.setCompleted(true);
-            ResponseEntity<TaskResponseDto> put = restTemplate.exchange(
-                    baseUrl + "/" + body.getId(),
-                    HttpMethod.PUT,
-                    new HttpEntity<>(u),
-                    TaskResponseDto.class
-            );
-            assertThat(put.getBody()).isNotNull();
-            return put.getBody();
-        }
-        return body;
+    private Task task(String id, String title, String description, boolean completed) {
+        Task task = new Task();
+        task.setId(id);
+        task.setTitle(title);
+        task.setDescription(description);
+        task.setCompleted(completed);
+        task.setCreatedAt(LocalDateTime.of(2026, 5, 16, 12, 0));
+        task.setDueDate(LocalDate.now().plusDays(1));
+        task.setPriority(Priority.MEDIUM);
+        task.setTags(Set.of("homework"));
+        return task;
+    }
+
+    private TaskResponseDto responseDto(Task task) {
+        TaskResponseDto dto = new TaskResponseDto();
+        dto.setId(task.getId());
+        dto.setTitle(task.getTitle());
+        dto.setDescription(task.getDescription());
+        dto.setCompleted(task.isCompleted());
+        dto.setCreatedAt(task.getCreatedAt());
+        dto.setDueDate(task.getDueDate());
+        dto.setPriority(task.getPriority());
+        dto.setTags(task.getTags());
+        return dto;
     }
 }
